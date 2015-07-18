@@ -11,10 +11,10 @@ import (
 	"github.com/goji/glogrus"
 	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
+	"github.com/zenazn/goji/web/middleware"
 )
 
 var Logger = logrus.New()
-var DB *sql.DB
 
 type User struct {
 	Id   int    `json:"id"`
@@ -29,7 +29,7 @@ type UserInfo struct {
 func SetProperties(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		// Pass data through the environment
-		c.Env["DB"] = DB
+		c.Env["myapp"] = "something"
 		// Fully control how the next layer is called
 		h.ServeHTTP(w, r)
 	}
@@ -114,11 +114,20 @@ func main() {
 	Logger.Formatter = new(logrus.JSONFormatter)
 
 	// init
-	DB = InitDatabase("./myapp.db")
-	defer DB.Close()
+	db := InitDatabase("./myapp.db")
+	defer db.Close()
 
 	// middleware
+	goji.Use(func(c *web.C, h http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			c.Env["DB"] = db
+			h.ServeHTTP(w, r)
+		}
+		return http.HandlerFunc(fn)
+
+	})
 	goji.Use(glogrus.NewGlogrus(Logger, "myapp"))
+	goji.Use(middleware.NoCache)
 	goji.Use(SetProperties)
 
 	// handlers
