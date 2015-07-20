@@ -127,6 +127,7 @@ func main() {
 
 	})
 	goji.Use(glogrus.NewGlogrus(Logger, "myapp"))
+	goji.Use(middleware.Recoverer)
 	goji.Use(middleware.NoCache)
 	goji.Use(SetProperties)
 
