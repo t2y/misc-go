@@ -44,6 +44,10 @@ func getDB(c web.C) *sql.DB {
 	return nil
 }
 
+func AllMatchHandler(c web.C, w http.ResponseWriter, r *http.Request) {
+	w.Write(json.RawMessage(`{"name": "AllMatchHandler"}`))
+}
+
 func ListUsers(c web.C, w http.ResponseWriter, r *http.Request) {
 	rows := QuerySql(getDB(c), "select id, name, age from users")
 	users := make([]User, 0, 10)
@@ -134,6 +138,7 @@ func main() {
 	// handlers
 	goji.Get("/users/", ListUsers)
 	goji.Get(regexp.MustCompile(`/users/(?P<name>\w+)$`), GetUser)
+	goji.Get("/*", AllMatchHandler)
 	goji.Post(regexp.MustCompile(`/users/(?P<name>\w+)$`), RegisterUser)
 	goji.Put("/users/:name", UpdateUserInfo)
 	goji.Delete("/users/:name", DeleteUserInfo)
