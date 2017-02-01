@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -8,12 +9,33 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+var endpoint = flag.String("endpoint", "", "")
+var disableSSL = flag.Bool("disable-ssl", false, "")
+
 func main() {
-	s := session.Must(
+	flag.Parse()
+
+	// read credentials in shared config file
+	shared := session.Must(
 		session.NewSessionWithOptions(
 			session.Options{
 				SharedConfigState: session.SharedConfigEnable,
-			}))
+			},
+		),
+	)
+
+	c := aws.NewConfig().
+		WithCredentialsChainVerboseErrors(true).
+		WithCredentials(shared.Config.Credentials).
+		WithRegion(*shared.Config.Region).
+		WithEndpoint(*endpoint).
+		WithDisableSSL(*disableSSL)
+	s, err := session.NewSession(c)
+	if err != nil {
+		log.Println("Failed to instatiate session", err)
+		return
+	}
+
 	s3Client := s3.New(s)
 	result, err := s3Client.ListBuckets(&s3.ListBucketsInput{})
 	if err != nil {
@@ -32,6 +54,5 @@ func main() {
 		} else {
 			log.Println("Failed to list objects in buckets", err)
 		}
-
 	}
 }
