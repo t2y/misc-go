@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"flag"
 	"io"
 	"log"
@@ -268,8 +269,18 @@ func main() {
 		WithCredentialsChainVerboseErrors(true).
 		WithCredentials(shared.Config.Credentials).
 		WithRegion(*shared.Config.Region).
-		WithEndpoint(*endpoint).
-		WithDisableSSL(*disableSSL)
+		WithEndpoint(*endpoint)
+
+	if *disableSSL {
+		c = c.WithDisableSSL(*disableSSL)
+	} else {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		c = c.WithHTTPClient(client)
+	}
+
 	s, err := session.NewSession(c)
 	if err != nil {
 		log.Println("Failed to instatiate session", err)
