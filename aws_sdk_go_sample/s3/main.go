@@ -23,7 +23,7 @@ var localPath = flag.String("path", "", "")
 var objectKey = flag.String("objectkey", "", "")
 var rangeBytes = flag.String("rangeBytes", "", "")
 var endpoint = flag.String("endpoint", "", "")
-var disableSSL = flag.Bool("disable-ssl", false, "")
+var disableSSL = flag.Bool("disableSSL", false, "")
 
 func getNextRange(contentRange string, rangeBytes int) string {
 	log.Println("contentRange:", contentRange)
@@ -105,6 +105,14 @@ func getSegmentFileName(fileName string, num int) string {
 	return fileName + "." + strconv.Itoa(num)
 }
 
+func showProtocolSchema() string {
+	if *disableSSL {
+		return "Schema: http"
+	} else {
+		return "Schema: https"
+	}
+}
+
 func writeFileWithRangeRequest(client *s3.S3, bucketName, key, fileName, contentRange string, rangeBytes int) {
 	i := 1
 	for {
@@ -118,6 +126,7 @@ func writeFileWithRangeRequest(client *s3.S3, bucketName, key, fileName, content
 			log.Println(err.Error())
 			return
 		}
+		log.Println(showProtocolSchema())
 		log.Println("GetObjectOutput:", result)
 
 		writeFile(result.Body, getSegmentFileName(fileName, i))
