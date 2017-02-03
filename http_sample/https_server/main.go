@@ -9,6 +9,8 @@ import (
 // http://qiita.com/ryurock/items/f55db5944397619735bf
 
 func hello(w http.ResponseWriter, r *http.Request) {
+	log.Println("hello called")
+	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte("hello\n"))
 }
 
