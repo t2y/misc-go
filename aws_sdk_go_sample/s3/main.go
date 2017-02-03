@@ -23,7 +23,7 @@ var command = flag.String("command", "", "")
 var bucketName = flag.String("bucket", "", "")
 var localPath = flag.String("path", "", "")
 var objectKey = flag.String("objectKey", "", "")
-var rangeBytes = flag.String("rangeBytes", "", "")
+var rangeBytes = flag.Int("rangeBytes", 0, "")
 var endpoint = flag.String("endpoint", "", "")
 var disableSSL = flag.Bool("disableSSL", false, "")
 var bufSize = flag.Int("bufSize", 0, "")
@@ -151,7 +151,9 @@ func showProtocolSchema() string {
 	}
 }
 
-func writeFileWithRangeRequest(client *s3.S3, bucketName, key, fileName, contentRange string, rangeBytes int) {
+func writeFileWithRangeRequest(
+	client *s3.S3, bucketName, key, fileName, contentRange string, rangeBytes int,
+) {
 	i := 1
 	for {
 		params := &s3.GetObjectInput{
@@ -179,22 +181,17 @@ func writeFileWithRangeRequest(client *s3.S3, bucketName, key, fileName, content
 	concatenateFile(fileName, i)
 }
 
-func getObject(client *s3.S3, bucketName, key, rangeBytes string) {
+func getObject(
+	client *s3.S3, bucketName, key string, rangeBytes, bufSize, milliSecond int,
+) {
 	bucket := &s3.Bucket{Name: &bucketName}
 	params := &s3.GetObjectInput{
 		Bucket: bucket.Name,
 		Key:    aws.String(key),
 	}
 
-	var _rangeBytes int
-	if rangeBytes != "" {
-		var err error
-		_rangeBytes, err = strconv.Atoi(rangeBytes)
-		if err != nil {
-			log.Println(err.Error())
-			return
-		}
-		rangeString := "bytes=0-" + strconv.Itoa(_rangeBytes-1)
+	if rangeBytes != 0 {
+		rangeString := "bytes=0-" + strconv.Itoa(rangeBytes-1)
 		params = params.SetRange(rangeString)
 		log.Println("setRange:", rangeString)
 	}
@@ -210,12 +207,14 @@ func getObject(client *s3.S3, bucketName, key, rangeBytes string) {
 	fileName := path.Base(key)
 	if result.ContentRange != nil && hasRestFileContents(*result.ContentRange) {
 		writeFile(result.Body, fileName+".0")
-		writeFileWithRangeRequest(client, bucketName, key, fileName, *result.ContentRange, _rangeBytes)
+		writeFileWithRangeRequest(
+			client, bucketName, key, fileName, *result.ContentRange, rangeBytes,
+		)
 	} else {
-		if *bufSize == 0 {
+		if bufSize == 0 {
 			writeFile(result.Body, fileName)
 		} else {
-			writeFileWithBuffering(result.Body, fileName, *bufSize, *milliSecond)
+			writeFileWithBuffering(result.Body, fileName, bufSize, milliSecond)
 		}
 	}
 }
@@ -352,7 +351,7 @@ func main() {
 	case "getBucket":
 		getBucket(client, *bucketName)
 	case "getObject":
-		getObject(client, *bucketName, *objectKey, *rangeBytes)
+		getObject(client, *bucketName, *objectKey, *rangeBytes, *bufSize, *milliSecond)
 	case "putBucket":
 		putBucket(client, *bucketName)
 	case "putObject":
