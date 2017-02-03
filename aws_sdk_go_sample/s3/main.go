@@ -20,7 +20,7 @@ import (
 var command = flag.String("command", "", "")
 var bucketName = flag.String("bucket", "", "")
 var localPath = flag.String("path", "", "")
-var objectKey = flag.String("objectkey", "", "")
+var objectKey = flag.String("objectKey", "", "")
 var rangeBytes = flag.String("rangeBytes", "", "")
 var endpoint = flag.String("endpoint", "", "")
 var disableSSL = flag.Bool("disableSSL", false, "")
@@ -211,7 +211,9 @@ func getBucket(client *s3.S3, bucketName string) {
 	listObjects(client, bucket)
 }
 
-func makePutObjectInput(bucketName string, file *os.File, localPath string) *s3.PutObjectInput {
+func makePutObjectInput(
+	bucketName string, file *os.File, localPath string, objectKey string,
+) *s3.PutObjectInput {
 	fileInfo, _ := file.Stat()
 	var size int64 = fileInfo.Size()
 
@@ -220,7 +222,10 @@ func makePutObjectInput(bucketName string, file *os.File, localPath string) *s3.
 	fileBytes := bytes.NewReader(buffer)
 	fileType := http.DetectContentType(buffer)
 
-	key := path.Base(localPath)
+	key := objectKey
+	if key == "" {
+		key = path.Base(localPath)
+	}
 	return &s3.PutObjectInput{
 		Bucket:        aws.String(bucketName),
 		Key:           aws.String(key),
@@ -230,7 +235,7 @@ func makePutObjectInput(bucketName string, file *os.File, localPath string) *s3.
 	}
 }
 
-func putObject(client *s3.S3, bucketName, localPath string) {
+func putObject(client *s3.S3, bucketName, localPath string, objectKey string) {
 	file, err := os.Open(localPath)
 	if err != nil {
 		log.Printf("err opening file: %s", err)
@@ -238,7 +243,9 @@ func putObject(client *s3.S3, bucketName, localPath string) {
 	}
 	defer file.Close()
 
-	result, err := client.PutObject(makePutObjectInput(bucketName, file, localPath))
+	params := makePutObjectInput(bucketName, file, localPath, objectKey)
+	log.Println("PutObjectInput:", params)
+	result, err := client.PutObject(params)
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -307,7 +314,7 @@ func main() {
 	case "putBucket":
 		putBucket(client, *bucketName)
 	case "putObject":
-		putObject(client, *bucketName, *localPath)
+		putObject(client, *bucketName, *localPath, *objectKey)
 	default:
 		log.Println("unknown command", command)
 	}
