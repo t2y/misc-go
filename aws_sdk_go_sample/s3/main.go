@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
 	"flag"
@@ -11,6 +12,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -24,6 +26,8 @@ var objectKey = flag.String("objectKey", "", "")
 var rangeBytes = flag.String("rangeBytes", "", "")
 var endpoint = flag.String("endpoint", "", "")
 var disableSSL = flag.Bool("disableSSL", false, "")
+var bufSize = flag.Int("bufSize", 0, "")
+var milliSecond = flag.Int("milliSec", 1000, "")
 
 func getNextRange(contentRange string, rangeBytes int) string {
 	log.Println("contentRange:", contentRange)
@@ -75,6 +79,40 @@ func writeFile(body io.ReadCloser, fileName string) {
 	}
 	defer f.Close()
 	io.Copy(f, body)
+	log.Println("wrote file:", fileName)
+	log.Println("========================================================================")
+}
+
+func writeFileWithBuffering(body io.ReadCloser, fileName string, bufSize int, milliSec int) {
+	f, err := os.Create(fileName)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+	defer f.Close()
+
+	i := int64(0)
+	reader := bufio.NewReader(body)
+	buf := make([]byte, 0, bufSize)
+	for {
+		n, err := reader.Read(buf[:cap(buf)])
+		buf = buf[:n]
+		if n == 0 {
+			if err == nil {
+				log.Println("read continue ...")
+				continue
+			} else if err == io.EOF {
+				log.Println("read complete break!")
+				break
+			}
+			log.Fatal(err)
+		}
+
+		log.Println("writing buffer ...", i)
+		f.Write(buf)
+		time.Sleep(time.Duration(milliSec) * time.Millisecond)
+		i += 1
+	}
 	log.Println("wrote file:", fileName)
 	log.Println("========================================================================")
 }
@@ -174,7 +212,11 @@ func getObject(client *s3.S3, bucketName, key, rangeBytes string) {
 		writeFile(result.Body, fileName+".0")
 		writeFileWithRangeRequest(client, bucketName, key, fileName, *result.ContentRange, _rangeBytes)
 	} else {
-		writeFile(result.Body, fileName)
+		if *bufSize == 0 {
+			writeFile(result.Body, fileName)
+		} else {
+			writeFileWithBuffering(result.Body, fileName, *bufSize, *milliSecond)
+		}
 	}
 }
 
