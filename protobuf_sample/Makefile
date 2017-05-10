@@ -2,15 +2,18 @@
 
 GOPATH=$(shell pwd)
 export GOPATH
-PATH=$(shell echo "$$GOPATH/bin:$$PATH")
-export PATH
+
+path=${GOPATH}/bin:$(PATH)
+export PATH := ${path}
 
 all: build
 
 deps:
+	go get -u github.com/golang/protobuf/protoc-gen-go
 	go get -v -d .
 
 generate:
+	@echo $(PATH)
 	mkdir -p src/example
 	protoc --go_out=src/example *.proto
 
