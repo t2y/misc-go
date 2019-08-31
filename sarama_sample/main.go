@@ -60,7 +60,7 @@ func createTopic(config *sarama.Config, brokers []string, topic string) {
 		log.Fatal("Error while creating topic: ", err.Error())
 	}
 
-	log.Printf("topic: %s is created")
+	log.Printf("topic: %s is created", topic)
 }
 
 func sendMessage(config *sarama.Config, brokers []string, topic, message string) {
