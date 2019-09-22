@@ -54,8 +54,12 @@ func main() {
 	}
 	if err := validate.Struct(dept); err != nil {
 		fmt.Printf("Err:\n%+v\n", err)
+		fmt.Println("---")
+		verrs := err.(validator.ValidationErrors)
+		for key, ferr := range verrs {
+			fmt.Printf("key: %s, field: %s, tag: %s\n", key, ferr.Field, ferr.Tag)
+		}
 	}
-
 }
 
 func ValidateValuer(field reflect.Value) interface{} {
