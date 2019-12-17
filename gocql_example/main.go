@@ -1,10 +1,12 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
-	"strings"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -119,28 +121,80 @@ func insertUserWithCounting(session *gocql.Session, userID string, names []strin
 	}
 }
 
-var userID = flag.String("uid", "", "")
-var name = flag.String("name", "", "firstName lastName")
+func selectRows(session *gocql.Session, cql string) {
+	iter := session.Query(cql).Iter()
+	defer iter.Close()
+
+	rows, err := iter.SliceMap()
+	if err != nil {
+		fmt.Printf("failed to query: %+v\n", err)
+		return
+	}
+
+	for _, row := range rows {
+		fmt.Printf("row: %+v\n", row)
+	}
+}
+
+var (
+	CHOST   = os.Getenv("CASSANDRA_HOST")
+	CPORT   = os.Getenv("CASSANDRA_PORT")
+	CUSER   = os.Getenv("CASSANDRA_USER")
+	CPASS   = os.Getenv("CASSANDRA_PASSWORD")
+	CCAPATH = os.Getenv("CASSANDRA_CA_PATH")
+)
+
+func getSslOptions() (opts *gocql.SslOptions) {
+	config := &tls.Config{
+		ServerName:         CHOST,
+		InsecureSkipVerify: true,
+	}
+	opts = &gocql.SslOptions{
+		Config:                 config,
+		EnableHostVerification: true,
+		CaPath:                 CCAPATH,
+	}
+	return
+}
+
+func getClusterConfig() (cluster *gocql.ClusterConfig) {
+	port, _ := strconv.Atoi(CPORT)
+	cluster = gocql.NewCluster(CHOST)
+	cluster.CQLVersion = "3.4.4"
+	cluster.Port = port
+	cluster.Consistency = gocql.LocalOne
+	cluster.SerialConsistency = gocql.LocalSerial
+	cluster.ProtoVersion = 4
+	cluster.Authenticator = gocql.PasswordAuthenticator{
+		Username: CUSER,
+		Password: CPASS,
+	}
+	cluster.Timeout = 3 * time.Second
+	cluster.ConnectTimeout = 3 * time.Second
+
+	if CCAPATH != "" {
+		cluster.SslOpts = getSslOptions()
+	}
+
+	// cluster.Keyspace = "..."
+	return cluster
+}
+
+var cql = flag.String("cql", "", "specify cql statement")
 
 func main() {
 	flag.Parse()
 
-	var names []string
-	if *name != "" {
-		names = strings.Split(*name, " ")
+	cluster := getClusterConfig()
+	session, err := cluster.CreateSession()
+	if err != nil {
+		fmt.Printf("failed to create session: %+v\n", err)
+		return
 	}
-
-	session := connect("127.0.0.1", "music")
 	defer session.Close()
 
-	// select
-	playlists := selectPlayLists(session)
-	for _, p := range playlists {
-		log.Println(fmt.Sprintf("%s, %s, %s", p.ID, p.Title, p.Artist))
-	}
-
-	// insert
-	if *userID != "" && len(names) != 0 {
-		insertUserWithCounting(session, *userID, names)
+	if *cql != "" {
+		fmt.Printf("%+v\n", *cql)
+		selectRows(session, *cql)
 	}
 }
