@@ -147,7 +147,7 @@ var (
 func getSslOptions() (opts *gocql.SslOptions) {
 	config := &tls.Config{
 		ServerName:         CHOST,
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: false,
 	}
 	opts = &gocql.SslOptions{
 		Config:                 config,
