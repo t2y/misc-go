@@ -1,4 +1,4 @@
-misc
-====
+misc-go
+=======
 
-dogs breakfast, temporary use, experimental implementation
+go: dogs breakfast, temporary use, experimental implementation
