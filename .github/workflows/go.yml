@@ -20,3 +20,14 @@ jobs:
 
     - name: Test
       run: go version
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3.6.0
+        with:
+          version: v1.53
+          only-new-issues: true
